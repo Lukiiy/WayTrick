@@ -15,7 +15,7 @@ public class WayTrick {
 
     /**
      * Show the waypoints to a player
-     * @param viewer
+     * @param viewer The player
      */
     public void addViewer(Player viewer) {
         viewers.add(viewer);
@@ -24,7 +24,7 @@ public class WayTrick {
 
     /**
      * Hide the waypoints from a player
-     * @param viewer
+     * @param viewer The player
      */
     public void removeViewer(Player viewer) {
         viewers.remove(viewer);
@@ -50,7 +50,7 @@ public class WayTrick {
      * @param style The waypoint style
      * @param positionMethod A function to calculate positioning
      */
-    public void customTrackTarget(Player target, Waypoint.Icon style, BiFunction<Player, Player, Vec3> positionMethod) {
+    public void trackTarget(Player target, Waypoint.Icon style, BiFunction<Player, Player, Vec3> positionMethod) {
         UUID targetId = target.getUniqueId();
         TrackedTarget tracked = new TrackedTarget(target, style, positionMethod);
 
