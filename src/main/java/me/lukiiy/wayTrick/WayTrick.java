@@ -18,7 +18,7 @@ public class WayTrick {
      */
     public void addViewer(Player viewer) {
         viewers.add(viewer);
-        targets.forEach((targetId, target) -> target.sendConnect(viewer));
+        targets.values().forEach(t -> t.sendWaypoint(viewer));
     }
 
     /**
@@ -27,7 +27,11 @@ public class WayTrick {
      */
     public void removeViewer(Player viewer) {
         viewers.remove(viewer);
-        targets.keySet().forEach(targetId -> removeWaypoint(viewer, targetId));
+
+        for (Map.Entry<UUID, TrackedTarget> e : targets.entrySet()) {
+            e.getValue().clear(viewer);
+            removeWaypoint(viewer, e.getKey());
+        }
     }
 
     /**
@@ -40,7 +44,7 @@ public class WayTrick {
         TrackedTarget tracked = new TrackedTarget(target, style, null);
 
         targets.put(targetId, tracked);
-        viewers.forEach(tracked::sendConnect);
+        viewers.forEach(tracked::sendWaypoint);
     }
 
     /**
@@ -54,7 +58,7 @@ public class WayTrick {
         TrackedTarget tracked = new TrackedTarget(target, style, positionMethod);
 
         targets.put(targetId, tracked);
-        viewers.forEach(tracked::sendConnect);
+        viewers.forEach(tracked::sendWaypoint);
     }
 
     /**
@@ -62,18 +66,27 @@ public class WayTrick {
      * @param target The player being tracked
      */
     public void untrackTarget(Player target) {
-        UUID targetId = target.getUniqueId();
-        TrackedTarget tracked = targets.remove(targetId);
+        UUID id = target.getUniqueId();
+        TrackedTarget tracked = targets.remove(id);
+        if (tracked == null) return;
 
-        if (tracked != null) viewers.forEach(viewer -> removeWaypoint(viewer, targetId));
+        Set<Player> viewersSnapshot = Set.copyOf(viewers);
+
+        viewersSnapshot.forEach(viewer -> {
+            tracked.clear(viewer);
+            removeWaypoint(viewer, id);
+        });
     }
 
     public void updateAll() {
-        targets.values().forEach(target -> target.update(viewers));
+        Set<Player> viewerSnapshot = Set.copyOf(viewers);
+        Collection<TrackedTarget> targets = List.copyOf(this.targets.values());
+
+        targets.forEach(t -> t.update(viewerSnapshot));
     }
 
     public void clear() {
-        targets.keySet().forEach(targetId -> viewers.forEach(viewer -> removeWaypoint(viewer, targetId)));
+        targets.keySet().forEach(id -> viewers.forEach(viewer -> removeWaypoint(viewer, id)));
         targets.clear();
         viewers.clear();
     }

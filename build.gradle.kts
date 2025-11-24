@@ -4,7 +4,8 @@ plugins {
 }
 
 group = "me.lukiiy"
-version = "1.0-SNAPSHOT"
+description = "A NMS library made to create a custom locator bar."
+version = "1.0"
 
 repositories {
     gradlePluginPortal()
