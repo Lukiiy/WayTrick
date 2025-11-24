@@ -3,7 +3,6 @@ package me.lukiiy.wayTrick;
 import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.waypoints.Waypoint;
-import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -80,6 +79,6 @@ public class WayTrick {
     }
 
     private void removeWaypoint(Player viewer, UUID targetId) {
-        ((CraftPlayer) viewer).getHandle().connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+        NMSUtils.handler(viewer).connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
     }
 }

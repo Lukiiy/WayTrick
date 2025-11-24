@@ -14,7 +14,6 @@ import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.BiFunction;
 
 class TrackedTarget {
@@ -27,7 +26,7 @@ class TrackedTarget {
     private final Map<Player, TrackingMode> viewerMode = new HashMap<>();
 
     private static final float VERY_FAR = 332f; // from NMS
-    private static final float AZIMUTH_ANGLE_THRESHOLD = 0.008726646f;
+    private static final float AZIMUTH_ANGLE_THRESHOLD = 0.008726646f; // from NMS
 
     TrackedTarget(Player target, Waypoint.Icon style, BiFunction<Player, Player, Vec3> positionMethod) {
         this.target = target;
@@ -36,15 +35,15 @@ class TrackedTarget {
     }
 
     public void sendConnect(Player viewer) {
-        ServerPlayer craftViewer = handler(viewer);
-        Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : handler(target).position();
+        ServerPlayer craftViewer = NMSUtils.handler(viewer);
+        Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : NMSUtils.handler(target).position();
         BlockPos blockPos = BlockPos.containing(targetPos);
         ChunkPos chunkPos = new ChunkPos(blockPos);
 
         if (craftViewer.position().distanceTo(targetPos) > VERY_FAR) {
             viewerMode.put(viewer, TrackingMode.AZIMUTH);
 
-            float angle = calculateAzimuth(craftViewer.position(), targetPos);
+            float angle = calcAzimuth(craftViewer.position(), targetPos);
 
             viewerLastAngle.put(viewer, angle);
             craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(target.getUniqueId(), style, angle));
@@ -60,10 +59,10 @@ class TrackedTarget {
     }
 
     void update(Set<Player> viewers) {
-        ServerPlayer craftTarget = handler(target);
+        ServerPlayer craftTarget = NMSUtils.handler(target);
 
         for (Player viewer : viewers) {
-            ServerPlayer craftViewer = handler(viewer);
+            ServerPlayer craftViewer = NMSUtils.handler(viewer);
             Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : craftTarget.position();
             BlockPos pos = BlockPos.containing(targetPos);
             ChunkPos chunkPos = new ChunkPos(pos);
@@ -74,13 +73,13 @@ class TrackedTarget {
                     viewerMode.put(viewer, TrackingMode.AZIMUTH);
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(target.getUniqueId()));
 
-                    float angle = calculateAzimuth(craftViewer.position(), targetPos);
+                    float angle = calcAzimuth(craftViewer.position(), targetPos);
 
                     viewerLastAngle.put(viewer, angle);
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(target.getUniqueId(), style, angle));
                 } else {
                     float old = viewerLastAngle.getOrDefault(viewer, 0f);
-                    float neo = calculateAzimuth(craftViewer.position(), targetPos);
+                    float neo = calcAzimuth(craftViewer.position(), targetPos);
 
                     if (Math.abs(neo - old) > AZIMUTH_ANGLE_THRESHOLD) {
                         viewerLastAngle.put(viewer, neo);
@@ -123,17 +122,13 @@ class TrackedTarget {
         BLOCK, CHUNK, AZIMUTH;
     }
 
-    private float calculateAzimuth(Vec3 viewerPos, Vec3 targetPos) {
+    private float calcAzimuth(Vec3 viewerPos, Vec3 targetPos) {
         Vec3 vector = viewerPos.subtract(targetPos).yRot(-90);
 
         return (float) Mth.atan2(vector.z, vector.x);
     }
 
     private boolean isChunkLoaded(Player viewer, ChunkPos pos) {
-        return WaypointTransmitter.isChunkVisible(pos, handler(viewer));
-    }
-
-    private static ServerPlayer handler(Player p) {
-        return ((CraftPlayer) p).getHandle();
+        return WaypointTransmitter.isChunkVisible(pos, NMSUtils.handler(viewer));
     }
 }
