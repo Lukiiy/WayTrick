@@ -35,7 +35,7 @@ class TrackedTarget {
         ServerPlayer craftViewer = NMSUtils.handler(viewer);
         Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : NMSUtils.handler(target).position();
         BlockPos blockPos = BlockPos.containing(targetPos);
-        ChunkPos chunkPos = new ChunkPos(blockPos);
+        ChunkPos chunkPos = ChunkPos.containing(blockPos);
         UUID targetId = target.getUniqueId();
 
         ViewerState state = viewerState.computeIfAbsent(viewer, v -> new ViewerState());
@@ -67,7 +67,7 @@ class TrackedTarget {
             ServerPlayer craftViewer = NMSUtils.handler(viewer);
             Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : craftTarget.position();
             BlockPos pos = BlockPos.containing(targetPos);
-            ChunkPos chunkPos = new ChunkPos(pos);
+            ChunkPos chunkPos = ChunkPos.containing(pos);
             ViewerState state = viewerState.get(viewer);
             Mode mode = state.mode == null ? Mode.BLOCK : state.mode;
             UUID targetId = target.getUniqueId();
