@@ -5,7 +5,7 @@ plugins {
 
 group = "me.lukiiy"
 description = "A NMS library made to create a custom locator bar."
-version = "1.0"
+version = "1.0-26.1"
 
 repositories {
     mavenCentral()
