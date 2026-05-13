@@ -45,14 +45,17 @@ class TrackedTarget {
 
             state.mode = Mode.AZIMUTH;
             state.lastAngle = angle;
+
             craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(targetId, style, angle));
         } else if (isChunkLoaded(viewer, chunkPos)) {
             state.mode = Mode.BLOCK;
             state.lastPos = blockPos;
+
             craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(targetId, style, blockPos));
         } else {
             state.mode = Mode.CHUNK;
             state.lastChunk = chunkPos;
+
             craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(targetId, style, chunkPos));
         }
     }
@@ -82,7 +85,7 @@ class TrackedTarget {
                     state.lastPos = null;
                     state.lastChunk = null;
                 } else {
-                    float old = state.lastAngle == null ? 0f : state.lastAngle;
+                    float old = state.lastAngle == null ? 0 : state.lastAngle;
                     float neo = calcAzimuth(craftViewer.position(), targetPos);
 
                     if (Math.abs(neo - old) > AZIMUTH_ANGLE_THRESHOLD) {
@@ -94,6 +97,7 @@ class TrackedTarget {
                 if (mode != Mode.BLOCK) {
                     state.mode = Mode.BLOCK;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+
                     state.lastPos = pos;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(targetId, style, pos));
 
@@ -111,6 +115,7 @@ class TrackedTarget {
                 if (mode != Mode.CHUNK) {
                     state.mode = Mode.CHUNK;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+
                     state.lastChunk = chunkPos;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(targetId, style, chunkPos));
 
@@ -129,7 +134,9 @@ class TrackedTarget {
     }
 
     public enum Mode {
-        BLOCK, CHUNK, AZIMUTH
+        BLOCK,
+        CHUNK,
+        AZIMUTH
     }
 
     private float calcAzimuth(Vec3 viewerPos, Vec3 targetPos) {
