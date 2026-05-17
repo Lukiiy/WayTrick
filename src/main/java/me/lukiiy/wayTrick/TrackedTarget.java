@@ -140,7 +140,7 @@ class TrackedTarget {
     }
 
     private float calcAzimuth(Vec3 viewerPos, Vec3 targetPos) {
-        Vec3 vector = viewerPos.subtract(targetPos).yRot(-90);
+        Vec3 vector = viewerPos.subtract(targetPos).yRot((float) -Math.PI / 2);
 
         return (float) Mth.atan2(vector.z, vector.x);
     }
