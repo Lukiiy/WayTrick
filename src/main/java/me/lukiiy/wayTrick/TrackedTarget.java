@@ -133,6 +133,13 @@ class TrackedTarget {
         }
     }
 
+    private static class ViewerState {
+        BlockPos lastPos;
+        ChunkPos lastChunk;
+        Float lastAngle;
+        Mode mode;
+    }
+
     public enum Mode {
         BLOCK,
         CHUNK,
