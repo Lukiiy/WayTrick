@@ -18,7 +18,7 @@ import java.util.function.BiFunction;
 
 class TrackedTarget {
     private final Player target;
-    private final UUID targetId = UUID.randomUUID();
+    private final UUID pointId = UUID.randomUUID();
     private final Waypoint.Icon style;
     private final BiFunction<Player, Player, Vec3> positionFun;
     private final Map<Player, ViewerState> viewerState = new HashMap<>();
@@ -45,17 +45,17 @@ class TrackedTarget {
             state.mode = Mode.AZIMUTH;
             state.lastAngle = angle;
 
-            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(targetId, style, angle));
+            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(pointId, style, angle));
         } else if (WaypointTransmitter.isChunkVisible(chunkPos, craftViewer)) {
             state.mode = Mode.BLOCK;
             state.lastPos = blockPos;
 
-            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(targetId, style, blockPos));
+            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(pointId, style, blockPos));
         } else {
             state.mode = Mode.CHUNK;
             state.lastChunk = chunkPos;
 
-            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(targetId, style, chunkPos));
+            craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(pointId, style, chunkPos));
         }
     }
 
@@ -68,48 +68,53 @@ class TrackedTarget {
             BlockPos pos = BlockPos.containing(targetPos);
             ChunkPos chunkPos = ChunkPos.containing(pos);
             ViewerState state = viewerState.get(viewer);
-            Mode mode = state.mode == null ? Mode.BLOCK : state.mode;
-            UUID targetId = target.getUniqueId();
+
+            if (state == null || state.mode == null) {
+                sendWaypoint(viewer);
+                continue;
+            }
+
+            Mode mode = state.mode;
 
             if (craftViewer.position().distanceTo(targetPos) > VERY_FAR) {
                 if (mode != Mode.AZIMUTH) {
                     state.mode = Mode.AZIMUTH;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(pointId));
 
                     float angle = calcAzimuth(craftViewer.position(), targetPos);
 
                     state.lastAngle = angle;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(targetId, style, angle));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(pointId, style, angle));
                 } else {
                     float neo = calcAzimuth(craftViewer.position(), targetPos);
 
                     if (Math.abs(neo - state.lastAngle) > AZIMUTH_ANGLE_THRESHOLD) {
                         state.lastAngle = neo;
 
-                        craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointAzimuth(targetId, style, neo));
+                        craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointAzimuth(pointId, style, neo));
                     }
                 }
             } else if (WaypointTransmitter.isChunkVisible(chunkPos, craftViewer)) {
                 if (mode != Mode.BLOCK) {
                     state.mode = Mode.BLOCK;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(pointId));
 
                     state.lastPos = pos;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(targetId, style, pos));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(pointId, style, pos));
                 } else if (!pos.equals(state.lastPos)) {
                     state.lastPos = pos;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointPosition(targetId, style, pos));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointPosition(pointId, style, pos));
                 }
             } else {
                 if (mode != Mode.CHUNK) {
                     state.mode = Mode.CHUNK;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(pointId));
 
                     state.lastChunk = chunkPos;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(targetId, style, chunkPos));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(pointId, style, chunkPos));
                 } else if (chunkPos.getChessboardDistance(state.lastChunk) > 0) {
                     state.lastChunk = chunkPos;
-                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointChunk(targetId, style, chunkPos));
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointChunk(pointId, style, chunkPos));
                 }
             }
         }
