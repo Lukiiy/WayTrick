@@ -18,6 +18,7 @@ import java.util.function.BiFunction;
 
 class TrackedTarget {
     private final Player target;
+    private final UUID targetId = UUID.randomUUID();
     private final Waypoint.Icon style;
     private final BiFunction<Player, Player, Vec3> positionFun;
     private final Map<Player, ViewerState> viewerState = new HashMap<>();
@@ -36,8 +37,6 @@ class TrackedTarget {
         Vec3 targetPos = positionFun != null ? positionFun.apply(target, viewer) : NMSUtils.handler(target).position();
         BlockPos blockPos = BlockPos.containing(targetPos);
         ChunkPos chunkPos = ChunkPos.containing(blockPos);
-        UUID targetId = target.getUniqueId();
-
         ViewerState state = viewerState.computeIfAbsent(viewer, v -> new ViewerState());
 
         if (craftViewer.position().distanceTo(targetPos) > VERY_FAR) {
@@ -47,7 +46,7 @@ class TrackedTarget {
             state.lastAngle = angle;
 
             craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(targetId, style, angle));
-        } else if (isChunkLoaded(viewer, chunkPos)) {
+        } else if (WaypointTransmitter.isChunkVisible(chunkPos, craftViewer)) {
             state.mode = Mode.BLOCK;
             state.lastPos = blockPos;
 
@@ -60,8 +59,8 @@ class TrackedTarget {
         }
     }
 
-    void update(Set<Player> viewers) {
-        ServerPlayer craftTarget = NMSUtils.handler(target);
+    public void update(Set<Player> viewers) {
+        ServerPlayer craftTarget = positionFun == null ? NMSUtils.handler(target) : null;
 
         for (Player viewer : viewers) {
             ServerPlayer craftViewer = NMSUtils.handler(viewer);
@@ -81,35 +80,25 @@ class TrackedTarget {
 
                     state.lastAngle = angle;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(targetId, style, angle));
-
-                    state.lastPos = null;
-                    state.lastChunk = null;
                 } else {
-                    float old = state.lastAngle == null ? 0 : state.lastAngle;
                     float neo = calcAzimuth(craftViewer.position(), targetPos);
 
-                    if (Math.abs(neo - old) > AZIMUTH_ANGLE_THRESHOLD) {
+                    if (Math.abs(neo - state.lastAngle) > AZIMUTH_ANGLE_THRESHOLD) {
                         state.lastAngle = neo;
+
                         craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointAzimuth(targetId, style, neo));
                     }
                 }
-            } else if (isChunkLoaded(viewer, chunkPos)) {
+            } else if (WaypointTransmitter.isChunkVisible(chunkPos, craftViewer)) {
                 if (mode != Mode.BLOCK) {
                     state.mode = Mode.BLOCK;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
 
                     state.lastPos = pos;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(targetId, style, pos));
-
-                    state.lastChunk = null;
-                    state.lastAngle = null;
-                } else {
-                    BlockPos lastPos = state.lastPos;
-
-                    if (!pos.equals(lastPos)) {
-                        state.lastPos = pos;
-                        craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointPosition(targetId, style, pos));
-                    }
+                } else if (!pos.equals(state.lastPos)) {
+                    state.lastPos = pos;
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointPosition(targetId, style, pos));
                 }
             } else {
                 if (mode != Mode.CHUNK) {
@@ -118,16 +107,9 @@ class TrackedTarget {
 
                     state.lastChunk = chunkPos;
                     craftViewer.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(targetId, style, chunkPos));
-
-                    state.lastPos = null;
-                    state.lastAngle = null;
-                } else {
-                    ChunkPos lastChunk = state.lastChunk;
-
-                    if (lastChunk == null || chunkPos.getChessboardDistance(lastChunk) > 0) {
-                        state.lastChunk = chunkPos;
-                        craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointChunk(targetId, style, chunkPos));
-                    }
+                } else if (chunkPos.getChessboardDistance(state.lastChunk) > 0) {
+                    state.lastChunk = chunkPos;
+                    craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointChunk(targetId, style, chunkPos));
                 }
             }
         }
@@ -136,7 +118,7 @@ class TrackedTarget {
     private static class ViewerState {
         BlockPos lastPos;
         ChunkPos lastChunk;
-        Float lastAngle;
+        float lastAngle;
         Mode mode;
     }
 
@@ -150,10 +132,6 @@ class TrackedTarget {
         Vec3 vector = viewerPos.subtract(targetPos).yRot((float) -Math.PI / 2);
 
         return (float) Mth.atan2(vector.z, vector.x);
-    }
-
-    private boolean isChunkLoaded(Player viewer, ChunkPos pos) {
-        return WaypointTransmitter.isChunkVisible(pos, NMSUtils.handler(viewer));
     }
 
     public void clear() {
