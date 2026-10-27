@@ -1,5 +1,6 @@
 package me.lukiiy.wayTrick;
 
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.waypoints.Waypoint;
@@ -28,10 +29,10 @@ public class WayTrick {
     public void removeViewer(Player viewer) {
         viewers.remove(viewer);
 
-        for (Map.Entry<UUID, TrackedTarget> e : targets.entrySet()) {
-            e.getValue().clear(viewer);
-            removeWaypoint(viewer, e.getKey());
-        }
+        targets.forEach((id, tracked) -> {
+            tracked.clear(viewer);
+            send(viewer, ClientboundTrackedWaypointPacket.removeWaypoint(id));
+        });
     }
 
     /**
@@ -40,10 +41,9 @@ public class WayTrick {
      * @param style The waypoint style
      */
     public void trackTarget(Player target, Waypoint.Icon style) {
-        UUID targetId = target.getUniqueId();
         TrackedTarget tracked = new TrackedTarget(target, style, null);
 
-        targets.put(targetId, tracked);
+        targets.put(target.getUniqueId(), tracked);
         viewers.forEach(tracked::sendWaypoint);
     }
 
@@ -54,10 +54,9 @@ public class WayTrick {
      * @param positionMethod A function to calculate positioning
      */
     public void trackTarget(Player target, Waypoint.Icon style, BiFunction<Player, Player, Vec3> positionMethod) {
-        UUID targetId = target.getUniqueId();
         TrackedTarget tracked = new TrackedTarget(target, style, positionMethod);
 
-        targets.put(targetId, tracked);
+        targets.put(target.getUniqueId(), tracked);
         viewers.forEach(tracked::sendWaypoint);
     }
 
@@ -70,28 +69,28 @@ public class WayTrick {
         TrackedTarget tracked = targets.remove(id);
         if (tracked == null) return;
 
-        Set<Player> viewersSnapshot = Set.copyOf(viewers);
-
-        viewersSnapshot.forEach(viewer -> {
+        viewers.forEach(viewer -> {
             tracked.clear(viewer);
-            removeWaypoint(viewer, id);
+
+            send(viewer, ClientboundTrackedWaypointPacket.removeWaypoint(id));
         });
     }
 
     public void updateAll() {
-        Set<Player> viewerSnapshot = Set.copyOf(viewers);
-        Collection<TrackedTarget> targets = List.copyOf(this.targets.values());
-
-        targets.forEach(t -> t.update(viewerSnapshot));
+        targets.values().forEach(t -> t.update(viewers));
     }
 
     public void clear() {
-        targets.keySet().forEach(id -> viewers.forEach(viewer -> removeWaypoint(viewer, id)));
+        targets.forEach((id, tracked) -> {
+            tracked.clear();
+            viewers.forEach(it -> send(it, ClientboundTrackedWaypointPacket.removeWaypoint(id)));
+        });
+
         targets.clear();
         viewers.clear();
     }
 
-    private void removeWaypoint(Player viewer, UUID targetId) {
-        NMSUtils.handler(viewer).connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(targetId));
+    private static void send(Player viewer, Packet<?> packet) {
+        NMSUtils.handler(viewer).connection.send(packet);
     }
 }
