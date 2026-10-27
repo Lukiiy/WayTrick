@@ -88,7 +88,7 @@ class TrackedTarget {
                 } else {
                     float neo = calcAzimuth(craftViewer.position(), targetPos);
 
-                    if (Math.abs(neo - state.lastAngle) > AZIMUTH_ANGLE_THRESHOLD) {
+                    if (Mth.abs(Mth.wrapDegrees((float) Math.toDegrees(neo - state.lastAngle))) > .5f) {
                         state.lastAngle = neo;
 
                         craftViewer.connection.send(ClientboundTrackedWaypointPacket.updateWaypointAzimuth(pointId, style, neo));
